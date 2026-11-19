@@ -83,3 +83,38 @@ def save_history(history):
             return _atomic_write_json(IP_HISTORY, history)
     except Exception:
         return False
+
+
+def merge_servers(current, new, replace_sources=(), sort_new=False, rename=None):
+    """Unified replace-by-source merge (was 6 near-identical fetch copies).
+
+    - Drops entries whose source is in replace_sources, keeps everything else.
+    - Dedups by endpoint within `new` and against the kept entries.
+    - sort_new: order the fresh block by (country, endpoint) before merging.
+    - rename: optional fn(server, index, added) -> name; index is the 1-based
+      position in the (sorted) new list, added is the running appended count
+      (Bundle/Proton number by index, Fetch ALL numbers by added).
+
+    Returns (merged, removed, added, skipped). `current` is never mutated;
+    `new` dicts may be renamed in place (same objects, as the old loops did).
+    """
+    removed = sum(1 for s in current if s.get("source") in replace_sources)
+    kept = [s for s in current if s.get("source") not in replace_sources]
+    existing = {s.get("endpoint") for s in kept}
+    if sort_new:
+        new = sorted(new, key=lambda s: (s.get("country", "XX"), s.get("endpoint", "")))
+    merged = list(kept)
+    seen_new = set()
+    added = skipped = 0
+    for i, server in enumerate(new, 1):
+        ep = server.get("endpoint")
+        if not ep or ep in seen_new or ep in existing:
+            skipped += 1
+            continue
+        seen_new.add(ep)
+        existing.add(ep)
+        if rename:
+            server["name"] = rename(server, i, added + 1)
+        merged.append(server)
+        added += 1
+    return merged, removed, added, skipped

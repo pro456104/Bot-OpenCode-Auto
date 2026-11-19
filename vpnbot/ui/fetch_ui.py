@@ -16,10 +16,10 @@ from ..gold import REFRESH_CAND_CAP, REFRESH_GOLD_TARGET, REFRESH_TOPUP_MAX, REF
 from ..kernel import any_kernel_up, kernel_uninstall
 from ..net import check_server
 from ..parsing import classify_bundle_country, parse_conf_from_text, parse_wireguard_uri
-from ..paths import BASE_DIR, SERVERS_FILE, WG_CONF
+from ..paths import BASE_DIR, SERVERS_FILE
 from ..sources import WIREGUARD_BUNDLE_URL, fetch_bundle_text, fetch_proton_zip, generate_wg_key, get_vpnbook_pubkey, iter_proton_servers
 from ..storage import save_servers
-from ..tunnel import _spawn_wp, kill_wp, make_conf, wait_for_vpn_ready, wp_running
+from ..tunnel import dial, kill_wp, wp_running
 from ..util import now_iso
 
 class FetchMixin:
@@ -675,10 +675,7 @@ PersistentKeepalive = 25
     def _handshake_check(self, server, timeout=REFRESH_VERIFY_TIMEOUT):
         """Single real-handshake check. Returns exit IP or None. Self-cleaning."""
         try:
-            with open(WG_CONF, "w", encoding="utf-8") as f:
-                f.write(make_conf(server))
-            _spawn_wp(WG_CONF)
-            return wait_for_vpn_ready(timeout_total=timeout)
+            return dial(server, timeout=timeout)
         except Exception:
             return None
         finally:

@@ -9,9 +9,8 @@ import random
 import subprocess
 from ..gold import gold_fresh, stamp_verified
 from ..kernel import KERNEL_CONF, KERNEL_TUNNEL, any_kernel_up, kernel_install, kernel_interfaces, kernel_tunnel_up, kernel_uninstall, make_kernel_conf, wait_for_kernel_ready
-from ..paths import WG_CONF
 from ..storage import save_history, save_servers
-from ..tunnel import _spawn_wp, kill_wp, make_conf, wait_for_vpn_ready, wp_running
+from ..tunnel import WireproxyMissing, dial, kill_wp, wp_running
 from .. import paths
 
 class ConnectMixin:
@@ -67,10 +66,10 @@ class ConnectMixin:
                 kernel_uninstall()
             except Exception:
                 pass
-            with open(WG_CONF, "w", encoding="utf-8") as f:
-                f.write(make_conf(server))
-            _spawn_wp(WG_CONF)
-            ip = wait_for_vpn_ready(timeout_total=7)
+            try:
+                ip = dial(server, timeout=7)
+            except WireproxyMissing:
+                ip = None
             if not ip:
                 self._safe_after(0, lambda: self.log(f"Verify {server.get('name')}: FAIL (tunnel down)"))
                 self.server_status[endpoint] = False
@@ -129,12 +128,11 @@ class ConnectMixin:
                 return
             self._safe_after(0, lambda: self.log(f"Verify done - restoring {was_server.get('name', '?')}..."))
             try:
-                with open(WG_CONF, "w", encoding="utf-8") as f:
-                    f.write(make_conf(was_server))
+                ip = dial(was_server, timeout=7)
+            except WireproxyMissing:
+                ip = None
             except Exception:
                 return
-            _spawn_wp(WG_CONF)
-            ip = wait_for_vpn_ready(timeout_total=7)
             if ip:
                 self.active_endpoint = was_endpoint
                 self._safe_after(0, lambda: self._mark_active_row())
@@ -394,13 +392,6 @@ class ConnectMixin:
                 kernel_uninstall()
             except Exception:
                 pass
-            try:
-                with open(WG_CONF, "w", encoding="utf-8") as f:
-                    f.write(make_conf(server))
-            except Exception as e:
-                self._safe_after(0, lambda: self.log(f"Conf write failed: {e}"))
-                self._safe_after(0, self._step1_failed)
-                return
             success_ip = None
             for attempt in range(3):
                 # NOTE: no stop_event check here on purpose. The global
@@ -414,11 +405,17 @@ class ConnectMixin:
                     self._safe_after(0, self._step1_failed_if_connecting)
                     return
                 self._safe_after(0, lambda a=attempt: self.log(f"Attempt {a + 1}/3..."))
-                if _spawn_wp(WG_CONF) is None and not os.path.isfile(paths.WG_PROXY or ""):
+                # dial() rewrites the conf each attempt: kill_wp() deletes it on
+                # retry, so the old write-once loop could never actually recover.
+                try:
+                    ip = dial(server, timeout=7)
+                except WireproxyMissing:
                     self._safe_after(0, lambda: self.log("wireproxy.exe not found! Use Paths button."))
                     break
-                # P0: fast poll (returns in ~0.5-2s on good server) instead of fixed sleep(5)
-                ip = wait_for_vpn_ready(timeout_total=7)
+                except OSError as e:
+                    self._safe_after(0, lambda e=e: self.log(f"Conf write failed: {e}"))
+                    self._safe_after(0, self._step1_failed)
+                    return
                 if ip:
                     success_ip = ip
                     break
@@ -617,14 +614,13 @@ class ConnectMixin:
             except Exception:
                 pass
             try:
-                with open(WG_CONF, "w", encoding="utf-8") as f:
-                    f.write(make_conf(server))
-            except Exception as e:
-                self._safe_after(0, lambda: self.log(f"Rotate conf failed: {e}"))
+                ip = dial(server, timeout=7)
+            except WireproxyMissing:
+                ip = None
+            except OSError as e:
+                self._safe_after(0, lambda e=e: self.log(f"Rotate conf failed: {e}"))
                 self._safe_after(0, self._clear_rotating)
                 return
-            _spawn_wp(WG_CONF)
-            ip = wait_for_vpn_ready(timeout_total=7)
             if sess != self._sess:
                 self._safe_after(0, self._clear_rotating)
                 return

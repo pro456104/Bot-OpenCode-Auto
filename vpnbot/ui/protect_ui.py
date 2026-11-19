@@ -5,9 +5,8 @@ import threading
 import time
 from ..kernel import any_kernel_up, kernel_tunnel_up
 from ..net import fetch_direct_ip, get_ip
-from ..paths import WG_CONF
 from ..storage import save_history
-from ..tunnel import _spawn_wp, kill_wp, make_conf, wait_for_vpn_ready, wp_running
+from ..tunnel import dial, kill_wp, wp_running
 
 class ProtectMixin:
     """Protect toggle: monitor watchdog + auto-reconnect loops."""
@@ -176,10 +175,10 @@ class ProtectMixin:
             sess = self._sess
             self.log(f"AUTO: Trying {server.get('name', '?')}...")
             kill_wp()
-            with open(WG_CONF, "w", encoding="utf-8") as f:
-                f.write(make_conf(server))
-            _spawn_wp(WG_CONF)
-            ip = wait_for_vpn_ready(timeout_total=7)
+            try:
+                ip = dial(server, timeout=7)
+            except Exception:
+                ip = None
             if sess != self._sess or not self.auto_reconnect:
                 # Reset/Disconnect/Protect-OFF meanwhile: do NOT resurrect.
                 try:

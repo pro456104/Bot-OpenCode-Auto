@@ -183,3 +183,23 @@ BindAddress = 127.0.0.1:10808
 [HTTP]
 BindAddress = 127.0.0.1:8080
 """
+
+
+class WireproxyMissing(Exception):
+    """wireproxy.exe absent at spawn time (fix via the Paths button)."""
+
+
+def dial(server, timeout=7):
+    """One connect attempt: write conf -> spawn wireproxy -> wait for exit IP.
+
+    Unified core of the 6 historic write/spawn/wait copies (connect, verify,
+    verify-restore, rotate, handshake-check, auto-reconnect). Returns the exit
+    IP or None. Raises WireproxyMissing when the exe is absent and OSError
+    when the conf cannot be written. Callers keep their own kill/session/retry
+    semantics; the conf is rewritten on every call (kill_wp deletes it).
+    """
+    with open(WG_CONF, "w", encoding="utf-8") as f:
+        f.write(make_conf(server))
+    if _spawn_wp(WG_CONF) is None and not os.path.isfile(paths.WG_PROXY or ""):
+        raise WireproxyMissing("wireproxy.exe not found! Use Paths button.")
+    return wait_for_vpn_ready(timeout_total=timeout)
