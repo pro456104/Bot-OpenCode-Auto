@@ -52,26 +52,6 @@ class ProtectMixin:
         self.log("Protect OFF")
         self._sync_protect_btn()
 
-    def toggle_monitor(self):
-        # Legacy entry (kept for compat) -> delegates to unified toggle.
-        self.toggle_protect()
-
-    def start_monitor(self):
-        if not getattr(self, "protect_on", False):
-            self._protect_enable()
-        else:
-            self.monitoring = True
-            self.stop_event.clear()
-            if not self.monitor_thread or not self.monitor_thread.is_alive():
-                self.monitor_thread = threading.Thread(
-                    target=self._monitor_loop, daemon=True)
-                self.monitor_thread.start()
-            self._sync_protect_btn()
-            self.log("Monitor started (10s interval)")
-
-    def stop_monitor(self):
-        self._protect_disable()
-
     def _monitor_loop(self):
         # B5 fix: labels updated from here too (status used to go stale).
         # Network work stays in this background thread; after() only paints.
@@ -122,10 +102,6 @@ class ProtectMixin:
                 self.lbl_status.config(text="Connected? (IP check failed)", fg="#f0883e")
         except Exception:
             pass
-
-    def toggle_auto_reconnect(self):
-        # Legacy entry (kept for compat) -> delegates to unified toggle.
-        self.toggle_protect()
 
     def _auto_reconnect_loop(self):
         while self.auto_reconnect and not self.stop_event.is_set():

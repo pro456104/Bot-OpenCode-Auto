@@ -29,13 +29,14 @@ bot opencode auto/
 │       ├── fetch_ui.py     # FetchMixin: fetch handlers + GOLD refresh pipeline
 │       └── protect_ui.py   # ProtectMixin: monitor + auto-reconnect loops
 ├── tests/                  # stdlib unittest suite + UI smoke test
+├── tools_legacy/           # Archived standalone scripts (superseded by the app)
 ├── bin/wireproxy.exe       # Bundled proxy engine
 ├── configs/
 │   ├── servers.json        # VPN server list (with source tags)
 │   ├── settings.json       # Optional manual path overrides
-│   └── backups/            # Auto backups (pre-refresh/clean/migrate)
-├── logs/                   # ip_history.json + archive
-└── *.py helpers            # Standalone CLI harvesters/importers (unchanged, independent)
+│   └── backups/            # Auto backups (recreated on Refresh, last 3 kept)
+├── logs/                   # ip_history.json (recreated on first rotation)
+└── start.bat / requirements.txt / README.md
 ```
 
 ## Architecture (Modular Monolith)
@@ -54,6 +55,10 @@ ui  →  core (tunnel / kernel / net / parsing / storage / sources / gold)  → 
   (`fetching/rotating/refreshing`) and dedicated cancel events are preserved verbatim.
 - **Threading rule**: background threads call core only; widgets are touched
   exclusively on the Tk main thread via `_safe_after`.
+- **Unified cores (phase 5)**: `tunnel.dial()` (one connect attempt: write conf →
+  spawn → wait; used by connect/verify/rotate/refresh/auto-reconnect),
+  `storage.merge_servers()` (replace-by-source + endpoint dedup for all fetch
+  flows), `App._record_rotation()` (counters + history + active endpoint).
 
 ## Key Paths (auto-detected, override in `configs/settings.json`)
 - Program: `vpn_bot.py` (portable - copy the folder anywhere)
@@ -128,6 +133,9 @@ NO_PROXY=localhost,127.0.0.1,::1
 - No system routing table changes needed (proxy mode)
 - VPNBook configs expire after 7 days
 - Rate limit is per-IP on "muse spark 1.3 free" model
+- **Data reset (2026-11-19)**: stale servers/history/archives were cleared.
+  Rebuild the list with **Fetch ▾ → Fetch ALL Fresh**, then **Refresh** for GOLD.
+  Old data remains in git history (baseline `4ae45c4`).
 
 ## Testing
 ```powershell

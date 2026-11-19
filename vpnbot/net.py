@@ -228,21 +228,6 @@ def check_server(host, port=51820, ping_timeout_ms=1200, udp_timeout=2):
     return False, -1, "Unreachable"
 
 
-def ping_host(host, port=51820, timeout=2):
-    """Backwards-compatible wrapper: True only when confirmed usable."""
-    alive, _, _ = check_server(host, port)
-    return alive is True
-
-
-def speed_test(host, port=51820, timeout=3):
-    """Backwards-compatible wrapper: latency via ICMP ping.
-
-    NOTE: old code measured TCP-connect time to a UDP-only port, which
-    always failed. Latency must come from ICMP, not TCP.
-    """
-    ms = icmp_ping(host, timeout_ms=int(timeout * 1000))
-    return round(ms, 1) if ms >= 0 else -1
-
 DIRECT_IP_URLS = [
     "https://api.ipify.org",
     "https://icanhazip.com",

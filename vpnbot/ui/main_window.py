@@ -393,10 +393,6 @@ class App(ServerListMixin, DialogsMixin, ConnectMixin, FetchMixin, ProtectMixin,
                                      fg="white", font=("Segoe UI", 8, "bold"),
                                      width=11, command=self.toggle_protect)
         self.btn_protect.pack(side="left", padx=(6, 2))
-        # Aliases so legacy methods (toggle_monitor / toggle_auto_reconnect /
-        # reset) keep working without AttributeError.
-        self.btn_monitor = self.btn_protect
-        self.btn_auto_reconnect = self.btn_protect
 
         tk.Button(right_sec, text="Paths", bg="#21262d", fg="#c9d1d9",
                   font=("Segoe UI", 8, "bold"), width=7,
@@ -692,14 +688,6 @@ class App(ServerListMixin, DialogsMixin, ConnectMixin, FetchMixin, ProtectMixin,
             self._sync_protect_btn()
         except Exception:
             pass
-        # Legacy aliases point at btn_protect; guard in case build not run.
-        for _alias in ("btn_monitor", "btn_auto_reconnect"):
-            try:
-                w = getattr(self, _alias, None)
-                if w is not None and w is not getattr(self, "btn_protect", None):
-                    w.config(text="Monitor", bg="#238636")
-            except Exception:
-                pass
         # Slow kills (taskkill/service) run in the background: Reset must
         # never freeze the UI, and late threads are already session-blocked.
         threading.Thread(target=self._reset_kills, daemon=True).start()
