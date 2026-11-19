@@ -6,7 +6,7 @@ from tkinter import messagebox
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from ..gold import get_countries, get_sources, gold_fresh
-from ..net import check_server, icmp_ping
+from ..net import check_server, icmp_ping, split_endpoint
 from ..storage import save_servers
 
 class ServerListMixin:
@@ -450,12 +450,7 @@ class ServerListMixin:
             if self._scan_stop.is_set():
                 return _SKIP
             endpoint = server.get("endpoint", "")
-            host = endpoint.split(":")[0] if ":" in endpoint else endpoint
-            port_str = endpoint.split(":")[1] if ":" in endpoint else "51820"
-            try:
-                port = int(str(port_str).strip())
-            except (ValueError, TypeError):
-                port = 51820
+            host, port = split_endpoint(endpoint)
             alive, ms, reason = check_server(host, port)
             # Merged ping check: Scan All also fills the Ping column.
             # check_server returns ms only when ICMP answered; otherwise do
@@ -604,7 +599,7 @@ class ServerListMixin:
             if self._speed_stop.is_set():
                 return _SKIP
             endpoint = server.get("endpoint", "")
-            host = endpoint.split(":")[0] if ":" in endpoint else endpoint
+            host, _ = split_endpoint(endpoint)
             # Latency = ICMP ping (TCP-to-WG-port is meaningless: WG is UDP-only)
             ms = icmp_ping(host, timeout_ms=2500)
             ms = round(ms, 1) if ms and ms > 0 else -1

@@ -11,6 +11,27 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 _DNS_CACHE = {}
 _DNS_CACHE_TTL = 300
 
+
+def split_endpoint(ep):
+    """(host, port) from 'host:port', '[ipv6]:port', or a bare host.
+
+    IPv6 literals contain colons, so naive split(':') corrupts them (live
+    bundle data carries [2400:...]:2408 endpoints). Port defaults to 51820
+    when absent or invalid.
+    """
+    ep = (ep or "").strip()
+    if ep.startswith("["):
+        host, _, rest = ep[1:].partition("]")
+        port = rest.lstrip(":")
+    else:
+        host, sep, port = ep.rpartition(":")
+        if not sep or ":" in host:  # bare host / unbracketed IPv6
+            host, port = ep, ""
+    try:
+        return host, int(port) if port else 51820
+    except (ValueError, TypeError):
+        return host, 51820
+
 # P0 speed: multiple IP providers, first answer wins (ifconfig.me alone is slow/rate-limited)
 IP_CHECK_URLS = [
     "https://api.ipify.org",
@@ -87,6 +108,8 @@ def resolve_host(host):
         # Already an IP?
         if re.match(r"^\d+\.\d+\.\d+\.\d+$", host):
             return host
+        if ":" in (host or ""):
+            return host  # IPv6 literal: no DNS lookup needed
         now = time.time()
         hit = _DNS_CACHE.get(host)
         if hit and (now - hit[1]) < _DNS_CACHE_TTL:
@@ -113,8 +136,11 @@ def icmp_ping(host, timeout_ms=1200):
         ip = resolve_host(host)
         if not ip:
             return -1
+        cmd = ["ping", "-n", "1", "-w", str(timeout_ms), ip]
+        if ":" in ip:
+            cmd.insert(1, "-6")  # Windows ping: force IPv6 for v6 literals
         r = subprocess.run(
-            ["ping", "-n", "1", "-w", str(timeout_ms), ip],
+            cmd,
             capture_output=True, text=True, timeout=(timeout_ms / 1000 + 3),
             creationflags=subprocess.CREATE_NO_WINDOW)
         out = (r.stdout or "") + (r.stderr or "")
@@ -144,7 +170,8 @@ def udp_probe(host, port=51820, timeout=2):
         ip = resolve_host(host)
         if not ip:
             return "dns-fail"
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        family = socket.AF_INET6 if ":" in ip else socket.AF_INET
+        s = socket.socket(family, socket.SOCK_DGRAM)
         s.settimeout(timeout)
         try:
             try:
@@ -175,7 +202,8 @@ def tcp_alive(host, port, timeout=2):
         ip = resolve_host(host)
         if not ip:
             return False
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        family = socket.AF_INET6 if ":" in ip else socket.AF_INET
+        sock = socket.socket(family, socket.SOCK_STREAM)
         sock.settimeout(timeout)
         result = sock.connect_ex((ip, port))
         sock.close()

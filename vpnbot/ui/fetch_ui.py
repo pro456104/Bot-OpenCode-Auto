@@ -14,7 +14,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from ..gold import REFRESH_CAND_CAP, REFRESH_GOLD_TARGET, REFRESH_TOPUP_MAX, REFRESH_VERIFY_TIMEOUT, gold_fresh, stamp_verified
 from ..kernel import any_kernel_up, kernel_uninstall
-from ..net import check_server
+from ..net import check_server, split_endpoint
 from ..parsing import classify_bundle_country, parse_conf_from_text, parse_wireguard_uri
 from ..paths import BASE_DIR, SERVERS_FILE
 from ..sources import WIREGUARD_BUNDLE_URL, fetch_bundle_text, fetch_proton_zip, generate_wg_key, get_vpnbook_pubkey, iter_proton_servers
@@ -828,11 +828,7 @@ PersistentKeepalive = 25
         # --- Fast pre-scan: UP + lowest latency first ---
         def probe(s):
             ep = s.get("endpoint", "")
-            host = ep.split(":")[0] if ":" in ep else ep
-            try:
-                port = int(str(ep.split(":")[1]).strip()) if ":" in ep else 51820
-            except (ValueError, TypeError):
-                port = 51820
+            host, port = split_endpoint(ep)
             alive, ms, _ = check_server(host, port)
             return (s, alive, ms if ms and ms > 0 else 99999)
 

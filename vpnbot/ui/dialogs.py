@@ -6,7 +6,6 @@ from tkinter import messagebox
 from tkinter import filedialog
 from tkinter import scrolledtext
 import os
-import json
 from ..parsing import parse_conf, parse_conf_from_text
 from ..paths import load_settings, resolve_opencode, resolve_wireproxy, save_settings, set_opencode_path, set_wireproxy_path
 from ..storage import save_servers

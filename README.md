@@ -139,11 +139,18 @@ NO_PROXY=localhost,127.0.0.1,::1
 
 ## Testing
 ```powershell
-# Unit tests (stdlib only, no network, temp dirs)
+# Unit tests (156, stdlib only, no network, temp dirs / mocks)
 python -m unittest discover -s tests -t .
 
-# UI smoke test (builds the real window, no network, never kills wireproxy)
+# UI smoke: basic window build (no network, never kills wireproxy)
 python tests\smoke_ui.py
+
+# FULL UI smoke: real data, every dialog, filters, selection, reset (temp writes)
+python tests\smoke_ui_full.py
+
+# LIVE end-to-end: fetch -> merge -> scan -> real VPN dial -> exit-IP verify -> cleanup
+# (aborts if a wireproxy session is already running; ~1-3 min)
+python tests\live_pipeline_test.py
 
 # Run the app
 python "C:\Users\Admin\Desktop\bot opencode auto\vpn_bot.py"
