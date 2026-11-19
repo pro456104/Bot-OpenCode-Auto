@@ -25,6 +25,11 @@ class TestDial(unittest.TestCase):
             p = mock.patch.object(target, attr, val)
             p.start()
             self.addCleanup(p.stop)
+        # dial() probes for foreign listeners before spawning; keep tests
+        # hermetic (no tasklist/port relocation side effects).
+        p = mock.patch.object(tunnel, "proxy_ready", return_value=False)
+        p.start()
+        self.addCleanup(p.stop)
 
     def test_success_writes_conf_and_returns_ip(self):
         with mock.patch.object(tunnel, "_spawn_wp", return_value=object()) as sp, \

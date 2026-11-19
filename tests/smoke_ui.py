@@ -7,6 +7,7 @@ so a running wireproxy session is NEVER killed by this test. No network calls.
 """
 import os
 import sys
+import tempfile
 from unittest import mock
 
 try:
@@ -21,6 +22,14 @@ from tkinter import messagebox  # noqa: E402
 for fn in ("showwarning", "showinfo", "showerror"):
     setattr(messagebox, fn,
             lambda *a, _fn=fn, **k: print("  [messagebox.%s suppressed] %s" % (_fn, a[:1])))
+
+from vpnbot import paths  # noqa: E402
+
+# App startup may relocate proxy ports (writes settings.json): keep the real
+# user settings untouched by pointing at a temp file.
+_tmp = tempfile.TemporaryDirectory()
+mock.patch.object(paths, "SETTINGS_FILE",
+                  os.path.join(_tmp.name, "settings.json")).start()
 
 from vpnbot.ui.main_window import App  # noqa: E402
 from vpnbot import gold  # noqa: E402

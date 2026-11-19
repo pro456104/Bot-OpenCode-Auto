@@ -4,6 +4,7 @@
 import time
 import os
 import re
+import socket
 import subprocess
 from .net import get_ip, proxy_ready
 from .paths import WG_CONF
@@ -178,15 +179,74 @@ AllowedIPs = 0.0.0.0/0, ::/0
 PersistentKeepalive = 15
 
 [Socks5]
-BindAddress = 127.0.0.1:10808
+BindAddress = 127.0.0.1:{paths.PROXY_SOCKS_PORT}
 
 [HTTP]
-BindAddress = 127.0.0.1:8080
+BindAddress = 127.0.0.1:{paths.PROXY_HTTP_PORT}
 """
 
 
 class WireproxyMissing(Exception):
     """wireproxy.exe absent at spawn time (fix via the Paths button)."""
+
+
+def port_free(port, host="127.0.0.1"):
+    """True when nothing is listening on host:port (bind probe, no spawn)."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind((host, int(port)))
+        return True
+    except Exception:
+        return False
+    finally:
+        try:
+            s.close()
+        except Exception:
+            pass
+
+
+def _find_free_port(start, avoid=()):
+    for p in range(int(start), int(start) + 200):
+        if p in avoid:
+            continue
+        if port_free(p):
+            return p
+    return int(start)
+
+
+def ensure_proxy_ports():
+    """Relocate proxy ports when a foreign program owns them.
+
+    wireproxy exits instantly with 'bind: Only one usage of each socket
+    address' when 8080/10808 are taken (e.g. another local service), which
+    surfaced as silent connection failures. Called at startup and lazily from
+    dial(); the choice is persisted so the OpenCode launch uses it too.
+    Returns (http_port, socks_port, changed).
+    """
+    try:
+        if wp_running(use_cache=False):
+            return paths.PROXY_HTTP_PORT, paths.PROXY_SOCKS_PORT, False
+    except Exception:
+        pass
+    http_ok = port_free(paths.PROXY_HTTP_PORT)
+    socks_ok = port_free(paths.PROXY_SOCKS_PORT)
+    if http_ok and socks_ok:
+        return paths.PROXY_HTTP_PORT, paths.PROXY_SOCKS_PORT, False
+    http = paths.PROXY_HTTP_PORT if http_ok else _find_free_port(paths.PROXY_HTTP_PORT + 1)
+    socks = paths.PROXY_SOCKS_PORT if socks_ok else _find_free_port(
+        paths.PROXY_SOCKS_PORT + 1, avoid=(http,))
+    if socks == http:
+        socks = _find_free_port(socks + 1, avoid=(http,))
+    paths.set_proxy_ports(http, socks)
+    try:
+        s = paths.load_settings()
+        s["proxy_http_port"] = http
+        s["proxy_socks_port"] = socks
+        paths.save_settings(s)
+    except Exception:
+        pass
+    return http, socks, True
 
 
 def dial(server, timeout=7):
@@ -198,6 +258,14 @@ def dial(server, timeout=7):
     when the conf cannot be written. Callers keep their own kill/session/retry
     semantics; the conf is rewritten on every call (kill_wp deletes it).
     """
+    # A foreign listener on our HTTP port makes wireproxy die at startup
+    # (bind error) -> relocate before spawning. The ownership probe costs a
+    # tasklist spawn only in the rare "listener exists" case.
+    try:
+        if proxy_ready(timeout=0.2) and not wp_running():
+            ensure_proxy_ports()
+    except Exception:
+        pass
     with open(WG_CONF, "w", encoding="utf-8") as f:
         f.write(make_conf(server))
     if _spawn_wp(WG_CONF) is None and not os.path.isfile(paths.WG_PROXY or ""):

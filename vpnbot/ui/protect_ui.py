@@ -3,8 +3,10 @@
 
 import threading
 import time
+from tkinter import simpledialog
 from ..kernel import any_kernel_up, kernel_tunnel_up
 from ..net import fetch_direct_ip, get_ip
+from ..paths import load_settings, save_settings
 from ..tunnel import dial, kill_wp, wp_running
 
 class ProtectMixin:
@@ -179,3 +181,81 @@ class ProtectMixin:
 
         self._safe_after(0, lambda: self.log("AUTO: All servers failed, will retry..."))
         self.failed_servers.clear()
+
+    # ---- Scheduled rotation (P3): rotate an active session every N minutes ----
+    def _sync_timer_btn(self):
+        try:
+            if getattr(self, "rotate_timer_on", False):
+                self.btn_timer.config(text="Timer %dm" % self.rotate_every_min, bg="#238636")
+            else:
+                self.btn_timer.config(text="Timer OFF", bg="#6e7681")
+        except Exception:
+            pass
+
+    def toggle_rotate_timer(self):
+        if getattr(self, "rotate_timer_on", False):
+            self._stop_rotate_timer()
+            return
+        n = simpledialog.askinteger(
+            "Auto-Rotate Timer",
+            "Rotate the active connection every N minutes.\n(1-1440, only while connected)",
+            initialvalue=self.rotate_every_min or 30, minvalue=1, maxvalue=1440, parent=self)
+        if not n:
+            return
+        self.rotate_every_min = int(n)
+        try:
+            s = load_settings()
+            s["rotate_every_min"] = self.rotate_every_min
+            save_settings(s)
+        except Exception:
+            pass
+        self._start_rotate_timer()
+
+    def _start_rotate_timer(self):
+        self._timer_stop.clear()
+        self.rotate_timer_on = True
+        if not self.rotate_timer_thread or not self.rotate_timer_thread.is_alive():
+            self.rotate_timer_thread = threading.Thread(
+                target=self._rotate_timer_loop, daemon=True)
+            self.rotate_timer_thread.start()
+        self._sync_timer_btn()
+        self.log("Auto-rotate ON: every %d min (while connected)" % self.rotate_every_min)
+
+    def _stop_rotate_timer(self):
+        self.rotate_timer_on = False
+        self._timer_stop.set()
+        try:
+            s = load_settings()
+            s["rotate_every_min"] = 0
+            save_settings(s)
+        except Exception:
+            pass
+        self._sync_timer_btn()
+        self.log("Auto-rotate OFF")
+
+    def _rotate_timer_tick(self, last):
+        """One timer evaluation; returns the updated last-rotate timestamp.
+
+        Only rotates an ACTIVE session, yields to manual jobs, and gives a
+        full interval after (re)connect so a fresh session isn't cut short.
+        """
+        interval = max(1, int(getattr(self, "rotate_every_min", 30))) * 60
+        now = time.time()
+        if not self.connected:
+            return now
+        if now - last < interval:
+            return last
+        if self._busy_vpn("Timer"):
+            return last
+        self._safe_after(0, lambda: self.log(
+            "TIMER: auto-rotate (every %dm)" % self.rotate_every_min))
+        self._safe_after(0, self.rotate_ip)
+        return now
+
+    def _rotate_timer_loop(self):
+        last = time.time()
+        while not self._timer_stop.is_set():
+            self._timer_stop.wait(getattr(self, "_timer_poll", 5))
+            if self._timer_stop.is_set():
+                break
+            last = self._rotate_timer_tick(last)

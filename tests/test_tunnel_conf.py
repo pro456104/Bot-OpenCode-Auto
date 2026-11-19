@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from vpnbot import tunnel
+from vpnbot import paths, tunnel
 
 SERVER = {"name": "t", "private_key": "PRIV", "address": "10.0.0.2/32",
           "public_key": "PUB", "endpoint": "1.2.3.4:51820",
@@ -13,6 +13,11 @@ SERVER = {"name": "t", "private_key": "PRIV", "address": "10.0.0.2/32",
 
 
 class TestMakeConf(unittest.TestCase):
+    def setUp(self):
+        saved = (paths.PROXY_HTTP_PORT, paths.PROXY_SOCKS_PORT)
+        self.addCleanup(paths.set_proxy_ports, *saved)
+        paths.set_proxy_ports(8080, 10808)
+
     def test_sections_and_keepalive(self):
         text = tunnel.make_conf(SERVER)
         for part in ("[Interface]", "[Peer]", "[Socks5]", "[HTTP]",

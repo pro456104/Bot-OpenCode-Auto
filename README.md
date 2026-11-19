@@ -20,6 +20,7 @@ bot opencode auto/
 │   ├── tunnel.py           # wireproxy userspace backend (spawn/kill/conf/readiness)
 │   ├── kernel.py           # WireGuard-NT kernel backend (tunnel service, handshakes)
 │   ├── sources.py          # WG bundle mirrors, ProtonVPN ZIP, VPNBook keygen
+│   ├── warp.py             # Cloudflare WARP auto-registration (pure-python X25519)
 │   └── ui/
 │       ├── theme.py        # Palette reference (GitHub-dark)
 │       ├── main_window.py  # App(tk.Tk): state, layout, log, status, reset/cleanup
@@ -42,13 +43,15 @@ bot opencode auto/
 ## Architecture (Modular Monolith)
 Dependency direction (strict, no reverse imports, no cycles):
 ```
-ui  →  core (tunnel / kernel / net / parsing / storage / sources / gold)  →  paths / util
+ui  →  core (tunnel / kernel / net / parsing / storage / sources / warp / gold)  →  paths / util
 ```
 - **No `tkinter` outside `vpnbot/ui/`** — the core is UI-agnostic.
 - **No `subprocess` outside core** (net/tunnel/kernel/sources/paths).
 - **All file writes are atomic** (`util._atomic_write_json`) under storage locks.
 - **Mutable runtime state** lives in exactly one module each: `paths.WG_PROXY` /
   `paths.OPENCODE_EXE` (read at call time, updated via `paths.set_*_path`),
+  `paths.PROXY_HTTP_PORT` / `paths.PROXY_SOCKS_PORT` (relocated by
+  `tunnel.ensure_proxy_ports` when another program owns the defaults),
   and the tracked wireproxy handle inside `tunnel.py`.
 - **UI composition**: `App(ServerListMixin, DialogsMixin, ConnectMixin, FetchMixin, ProtectMixin, tk.Tk)`.
   All cross-calls remain `self.*`; session-generation guards (`_sess`), race flags
@@ -65,7 +68,9 @@ ui  →  core (tunnel / kernel / net / parsing / storage / sources / gold)  → 
 - wireproxy: `bin\wireproxy.exe` (bundled) -> PATH -> `C:\Program Files (x86)\wg-opencode\wireproxy.exe`
 - OpenCode: `%LOCALAPPDATA%\Programs\@opencode-aidesktop\OpenCode.exe` -> PATH
 - Official WireGuard (optional, kernel mode only): `%ProgramFiles%\WireGuard\`
-- Proxy: `127.0.0.1:8080` (HTTP) / `127.0.0.1:10808` (SOCKS5)
+- Proxy: `127.0.0.1:8080` (HTTP) / `127.0.0.1:10808` (SOCKS5) — if either port
+  is already owned by another program, the app auto-relocates to free ports
+  (logged at startup) and launches OpenCode with the chosen ports.
 
 ## How It Works
 1. Step 1: Kill old wireproxy processes
@@ -89,6 +94,10 @@ ui  →  core (tunnel / kernel / net / parsing / storage / sources / gold)  → 
 - **Paste Config**: Paste WireGuard config text directly
 - **Fetch URL**: Download config from a URL
 - **Fetch Bulk URLs**: Fetch from multiple URLs at once
+- **WARP Pool (auto)**: Registers free Cloudflare WARP devices (no account,
+  no CAPTCHA, unlimited) — pure-python X25519 keys, unique anycast endpoint
+  per device, live-verified to GOLD when idle. Devices are persistent assets
+  (append-only; never replaced by other fetches)
 - **Refresh**: On-demand: pulls fresh servers from websites first, GOLD is temp cache (3-day TTL), drops dead (never auto)
 - **Open VPNBook**: Opens VPNBook website (generate config, then paste it)
 
@@ -97,7 +106,11 @@ ui  →  core (tunnel / kernel / net / parsing / storage / sources / gold)  → 
 - **Monitor**: Watchdog that auto-rotates on failure
 - **Auto Reconnect**: Auto-rotate on wireproxy/IP failure
 - **Protect**: One toggle combining Monitor + Auto Reconnect
+- **Timer**: Auto-rotate the active connection every N minutes (persisted in
+  settings.json; only while connected, yields to manual jobs)
 - **Kernel**: Optional WireGuard-NT direct routing (no proxy hop)
+- **Scan memory**: last UP/DOWN + latency are persisted and restored at
+  startup (24h TTL), so the list starts informed instead of "unscanned"
 
 ## Environment Variables for OpenCode
 ```
@@ -106,6 +119,7 @@ HTTP_PROXY=http://127.0.0.1:8080
 ALL_PROXY=socks5h://127.0.0.1:10808
 NO_PROXY=localhost,127.0.0.1,::1
 ```
+(Ports above are defaults; if busy, the app picks free ones and injects those.)
 (Kernel mode: proxy vars removed — OpenCode routes directly via WireGuard-NT.)
 
 ## Adding New Servers
@@ -132,20 +146,22 @@ NO_PROXY=localhost,127.0.0.1,::1
 - wireproxy converts WireGuard tunnel to local HTTP/SOCKS5 proxy
 - No system routing table changes needed (proxy mode)
 - VPNBook configs expire after 7 days
+- **WARP devices never expire** (your own keys); register more for new exit IPs
+- If another program owns ports 8080/10808, the app relocates automatically
 - Rate limit is per-IP on "muse spark 1.3 free" model
-- **Data reset (2026-11-19)**: stale servers/history/archives were cleared.
-  Rebuild the list with **Fetch ▾ → Fetch ALL Fresh**, then **Refresh** for GOLD.
+- **Data**: rebuilt live on 2026-11-19 — 738 servers + 1 GOLD (Bundle/Proton).
+  WARP devices are added on demand via **Fetch ▾ → WARP Pool (auto)**.
   Old data remains in git history (baseline `4ae45c4`).
 
 ## Testing
 ```powershell
-# Unit tests (156, stdlib only, no network, temp dirs / mocks)
+# Unit tests (196, stdlib only, no network, temp dirs / mocks)
 python -m unittest discover -s tests -t .
 
 # UI smoke: basic window build (no network, never kills wireproxy)
 python tests\smoke_ui.py
 
-# FULL UI smoke: real data, every dialog, filters, selection, reset (temp writes)
+# FULL UI smoke: real data, every dialog, WARP menu, timer, scan restore (temp writes)
 python tests\smoke_ui_full.py
 
 # LIVE end-to-end: fetch -> merge -> scan -> real VPN dial -> exit-IP verify -> cleanup
@@ -156,8 +172,8 @@ python tests\live_pipeline_test.py
 python "C:\Users\Admin\Desktop\bot opencode auto\vpn_bot.py"
 ```
 Manual checklist after changes: Connect / double-click row / Rotate / Random /
-Kernel / Scan All / Speed / Verify / Fetch (each source) / Refresh + Stop /
-Protect ON-OFF / Reset / Paths / clean close.
+Kernel / Scan All / Speed / Verify / Fetch (each source incl. WARP Pool) /
+Refresh + Stop / Timer ON-OFF / Protect ON-OFF / Reset / Paths / clean close.
 
 ## Dependencies
 - Python 3.10+ with Tkinter (stdlib only — no pip packages)

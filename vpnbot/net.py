@@ -8,6 +8,8 @@ import urllib.request
 import socket
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from . import paths
+
 _DNS_CACHE = {}
 _DNS_CACHE_TTL = 300
 
@@ -39,8 +41,10 @@ IP_CHECK_URLS = [
     "https://ifconfig.me",
 ]
 
-def proxy_ready(host="127.0.0.1", port=8080, timeout=0.3):
+def proxy_ready(host="127.0.0.1", port=None, timeout=0.3):
     """Fast TCP check that wireproxy HTTP listener is up. No process spawn."""
+    if port is None:
+        port = paths.PROXY_HTTP_PORT
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(timeout)
@@ -54,9 +58,10 @@ def proxy_ready(host="127.0.0.1", port=8080, timeout=0.3):
 def _fetch_ip_via_proxy(url, timeout=3):
     """Fetch exit IP through local wireproxy HTTP proxy using urllib (no curl.exe spawn)."""
     try:
+        proxy_url = "http://127.0.0.1:%d" % paths.PROXY_HTTP_PORT
         proxy = urllib.request.ProxyHandler({
-            "http": "http://127.0.0.1:8080",
-            "https": "http://127.0.0.1:8080",
+            "http": proxy_url,
+            "https": proxy_url,
         })
         opener = urllib.request.build_opener(proxy)
         opener.addheaders = [("User-Agent", "Mozilla/5.0")]

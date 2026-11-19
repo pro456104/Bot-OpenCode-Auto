@@ -56,3 +56,45 @@ def get_sources(servers):
         if src not in sources:
             sources.append(src)
     return sorted(sources)
+
+
+# Scan-state persistence (P3): restore last known UP/DOWN + latency at startup,
+# bounded by TTL so stale marks never mislead best-server ranking.
+SCAN_TTL_HOURS = 24
+
+
+def stamp_scan(server, alive, ms=None):
+    """Record a scan/speed result on the server entry (persisted schema)."""
+    server["last_scan"] = now_iso()
+    if alive is not None:
+        server["last_alive"] = alive
+    if ms and ms > 0:
+        server["latency"] = ms
+
+
+def scan_fresh(server):
+    try:
+        ls = server.get("last_scan", "")
+        if not ls:
+            return False
+        age_h = (time.time() - time.mktime(time.strptime(ls, "%Y-%m-%dT%H:%M:%S"))) / 3600.0
+        return age_h < SCAN_TTL_HOURS
+    except Exception:
+        return False
+
+
+def collect_scan_state(servers):
+    """(status_dict, latency_dict) from fresh persisted scan marks."""
+    status, latency = {}, {}
+    for s in servers:
+        if not scan_fresh(s):
+            continue
+        ep = s.get("endpoint", "")
+        if not ep:
+            continue
+        if "last_alive" in s:
+            status[ep] = s["last_alive"]
+        lat = s.get("latency")
+        if lat and lat > 0:
+            latency[ep] = lat
+    return status, latency

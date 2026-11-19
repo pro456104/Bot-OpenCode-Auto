@@ -5,7 +5,7 @@ import tkinter as tk
 from tkinter import messagebox
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from ..gold import get_countries, get_sources, gold_fresh
+from ..gold import get_countries, get_sources, gold_fresh, stamp_scan
 from ..net import check_server, icmp_ping, split_endpoint
 from ..storage import save_servers
 
@@ -557,6 +557,15 @@ class ServerListMixin:
         self.btn_check_all.config(state="normal", text="Scan All", bg="#1f6feb")
         suffix = " (stopped)" if cancelled else ""
         self.lbl_checked.config(text=f"UP: {active} | ??: {unknown} | DOWN: {inactive}{suffix}")
+        # Persist scan marks (P3): next startup restores UP/DOWN + latency.
+        try:
+            for s in self.servers:
+                ep = s.get("endpoint", "")
+                if ep in self.server_status:
+                    stamp_scan(s, self.server_status[ep], self.server_latency.get(ep))
+            save_servers(self.all_servers)
+        except Exception:
+            pass
         self.log(f"Scan {'stopped' if cancelled else 'complete'}: {active} UP, {unknown} UNKNOWN, {inactive} DOWN / {total}{suffix} "
                  f"(green=alive, orange=silent/unverified->use Verify, red=dead)")
         if not cancelled and active > 0:
@@ -673,6 +682,15 @@ class ServerListMixin:
         except Exception:
             pass
         self.btn_speed.config(state="normal", text="Speed", bg="#0a7ea4")
+        # Persist latency marks (P3), even for partial/cancelled runs.
+        try:
+            for s in self.servers:
+                ep = s.get("endpoint", "")
+                if ep in self.server_latency:
+                    stamp_scan(s, self.server_status.get(ep), self.server_latency[ep])
+            save_servers(self.all_servers)
+        except Exception:
+            pass
         if cancelled:
             self.log(f"Speed test stopped ({total} servers, partial results).")
             return

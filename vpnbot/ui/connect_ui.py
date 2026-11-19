@@ -7,7 +7,7 @@ import time
 import os
 import random
 import subprocess
-from ..gold import gold_fresh, stamp_verified
+from ..gold import gold_fresh, stamp_scan, stamp_verified
 from ..kernel import KERNEL_CONF, KERNEL_TUNNEL, any_kernel_up, kernel_install, kernel_interfaces, kernel_tunnel_up, kernel_uninstall, make_kernel_conf, wait_for_kernel_ready
 from ..storage import save_servers
 from ..tunnel import WireproxyMissing, dial, kill_wp, wp_running
@@ -87,6 +87,7 @@ class ConnectMixin:
                 self.server_checks[endpoint] = f"Verified {ip}"
                 self.failed_servers.discard(endpoint)
                 stamp_verified(server, ip)
+                stamp_scan(server, True)
                 save_servers(self.all_servers)
                 self._safe_after(0, lambda: self._update_server_status(endpoint, True))
                 # Restore the previous live session if we interrupted one.
@@ -515,12 +516,14 @@ class ConnectMixin:
             env["no_proxy"] = "localhost,127.0.0.1,::1"
             self.log("Kernel direct mode: OpenCode WITHOUT proxy (via WireGuard-NT).")
         else:
-            env["HTTPS_PROXY"] = "http://127.0.0.1:8080"
-            env["HTTP_PROXY"] = "http://127.0.0.1:8080"
+            http_proxy = "http://127.0.0.1:%d" % paths.PROXY_HTTP_PORT
+            socks_proxy = "socks5h://127.0.0.1:%d" % paths.PROXY_SOCKS_PORT
+            env["HTTPS_PROXY"] = http_proxy
+            env["HTTP_PROXY"] = http_proxy
             # P0: SOCKS5 handshake is ~15-20% faster than HTTP CONNECT; expose both
             # so OpenCode/electron-net can pick the fastest path.
-            env["ALL_PROXY"] = "socks5h://127.0.0.1:10808"
-            env["all_proxy"] = "socks5h://127.0.0.1:10808"
+            env["ALL_PROXY"] = socks_proxy
+            env["all_proxy"] = socks_proxy
             env["NO_PROXY"] = "localhost,127.0.0.1,::1"
             env["no_proxy"] = "localhost,127.0.0.1,::1"
         subprocess.Popen([paths.OPENCODE_EXE], env=env)

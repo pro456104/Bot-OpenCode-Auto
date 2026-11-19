@@ -123,6 +123,19 @@ def resolve_wireguard_tools():
     return exe, wg
 
 
+# Local proxy listener ports (wireproxy). Runtime-mutable: when another
+# program already owns 8080/10808 the app relocates (tunnel.ensure_proxy_ports)
+# and passes the chosen ports to OpenCode at launch.
+PROXY_HTTP_PORT = 8080
+PROXY_SOCKS_PORT = 10808
+
+
+def set_proxy_ports(http_port, socks_port):
+    global PROXY_HTTP_PORT, PROXY_SOCKS_PORT
+    PROXY_HTTP_PORT = int(http_port)
+    PROXY_SOCKS_PORT = int(socks_port)
+
+
 WG_PROXY, WIREPROXY_SEARCHED = resolve_wireproxy()
 if not WG_PROXY:
     WG_PROXY = LEGACY_WIREPROXY  # keeps error messages showing a concrete path

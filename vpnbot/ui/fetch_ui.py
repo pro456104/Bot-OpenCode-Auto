@@ -12,6 +12,7 @@ import re
 import shutil
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from .. import warp
 from ..gold import REFRESH_CAND_CAP, REFRESH_GOLD_TARGET, REFRESH_TOPUP_MAX, REFRESH_VERIFY_TIMEOUT, gold_fresh, stamp_verified
 from ..kernel import any_kernel_up, kernel_uninstall
 from ..net import check_server, split_endpoint
@@ -416,6 +417,76 @@ PersistentKeepalive = 25
         except Exception as e:
             self._safe_after(0, lambda: self.log(f"VPNBook error: {e}"))
             self._safe_after(0, lambda: messagebox.showerror("VPNBook Error", str(e)))
+
+    def fetch_warp(self):
+        """WARP Pool: auto-register free Cloudflare WARP devices (no account)."""
+        if not self._fetch_begin("WARP"):
+            return
+        n = simpledialog.askinteger(
+            "WARP Pool",
+            "Register how many WARP devices? (1-10)\n\n"
+            "Free, unlimited, no account/CAPTCHA.\n"
+            "Each device = private keys + its own endpoint.",
+            initialvalue=3, minvalue=1, maxvalue=10, parent=self)
+        if not n:
+            self.fetching = False  # release the single-flight guard on cancel
+            return
+        self.log("WARP: registering %d device(s)..." % n)
+        threading.Thread(target=self._fetch_wrap,
+                         args=(self._fetch_warp_thread, n), daemon=True).start()
+
+    def _fetch_warp_thread(self, count):
+        try:
+            existing_eps = {s.get("endpoint") for s in self.all_servers}
+            start = sum(1 for s in self.all_servers if s.get("source") == "WARP-Auto")
+            servers = warp.fetch_warp_servers(
+                count=count, existing_endpoints=existing_eps, start_index=start,
+                log=lambda m: self._safe_after(0, lambda m=m: self.log(m)))
+            if not servers:
+                self._safe_after(0, lambda: self.log("WARP: no devices registered."))
+                return
+            # Live-verify only when idle: handshake checks own wireproxy.conf,
+            # running them under an active session would kill the user's tunnel.
+            verified = 0
+            idle = not (self.connected or wp_running() or any_kernel_up())
+            if idle:
+                for s in servers:
+                    ip = self._handshake_check(s)
+                    if not ip:
+                        for fb in s.get("warp_fallbacks", []):
+                            if fb == s["endpoint"]:
+                                continue
+                            s["endpoint"] = fb
+                            ip = self._handshake_check(s)
+                            if ip:
+                                break
+                    if ip:
+                        stamp_verified(s, ip)
+                        self.server_status[s["endpoint"]] = True
+                        self.server_checks[s["endpoint"]] = "Verified %s" % ip
+                        self.failed_servers.discard(s["endpoint"])
+                        verified += 1
+                        self._safe_after(0, lambda s=s, ip=ip: self.log(
+                            "  NEW GOLD %s -> %s" % (s["name"], ip)))
+                    else:
+                        self._safe_after(0, lambda s=s: self.log(
+                            "  %s registered but unreachable (kept as candidate)" % s["name"]))
+            else:
+                self._safe_after(0, lambda: self.log(
+                    "WARP: session active - skipped live verify (use Verify/Refresh later)."))
+            # Append-only: WARP devices are persistent assets, never replaced.
+            self.all_servers, removed, added, skipped = merge_servers(
+                self.all_servers, servers, replace_sources=())
+            save_servers(self.all_servers)
+            self._safe_after(0, self._refresh_filter_menus)
+            self._safe_after(0, self.refresh_server_list)
+            msg = ("WARP Pool: %d device(s) registered, %d added (%d GOLD verified), %d dup."
+                   % (len(servers), added, verified, skipped))
+            self._safe_after(0, lambda: self.log(msg))
+            self._safe_after(0, lambda: messagebox.showinfo("WARP Done", msg))
+        except Exception as e:
+            self._safe_after(0, lambda: self.log("WARP error: %s" % e))
+            self._safe_after(0, lambda: messagebox.showerror("WARP Error", str(e)))
 
     def fetch_all_fresh(self):
         """One-click: fresh download from ALL web sources, replace same-source old."""

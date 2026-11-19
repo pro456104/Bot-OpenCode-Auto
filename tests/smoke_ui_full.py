@@ -4,6 +4,7 @@
 All writes go to a TEMP copy of servers.json/history/settings (real data safe).
 No network calls, no wireproxy spawn. Run: python tests/smoke_ui_full.py
 """
+import json
 import os
 import shutil
 import sys
@@ -73,6 +74,17 @@ def main():
     tmp = tempfile.TemporaryDirectory()
     servers_tmp = os.path.join(tmp.name, "servers.json")
     shutil.copy2(paths.SERVERS_FILE, servers_tmp)
+    # Inject a fresh scan mark into entry[0] to test startup restore (P3).
+    with open(servers_tmp, encoding="utf-8-sig") as f:
+        data = json.load(f)
+    marked_ep = None
+    if data:
+        data[0]["last_scan"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+        data[0]["last_alive"] = True
+        data[0]["latency"] = 55.0
+        marked_ep = data[0].get("endpoint")
+        with open(servers_tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f)
     for target, attr, val in ((storage, "SERVERS_FILE", servers_tmp),
                               (storage, "IP_HISTORY", os.path.join(tmp.name, "h.json")),
                               (paths, "SETTINGS_FILE", os.path.join(tmp.name, "s.json"))):
@@ -87,6 +99,43 @@ def main():
 
     check("rows match servers", lambda: (
         len(rows(app)) == n or (_ for _ in ()).throw(AssertionError("rows %d != %d" % (len(rows(app)), n)))))
+
+    def scan_restore():
+        if not marked_ep:
+            return
+        assert app.server_status.get(marked_ep) is True, "status not restored"
+        assert app.server_latency.get(marked_ep) == 55.0, "latency not restored"
+        assert rows(app)[0].status_label.cget("fg") == "#3fb950", "dot not painted from restore"
+    check("scan-state startup restore (P3)", scan_restore)
+
+    def warp_menu():
+        menu = app.nametowidget(app._fetch_mb["menu"])
+        labels = []
+        for i in range(menu.index("end") + 1):
+            try:
+                labels.append(menu.entrycget(i, "label"))
+            except Exception:
+                pass
+        assert "WARP Pool (auto)" in labels, labels
+        assert callable(app.fetch_warp)
+    check("WARP menu entry wired (P0)", warp_menu)
+
+    def timer_toggle():
+        settings_tmp = os.path.join(tmp.name, "s.json")
+        with mock.patch.object(simpledialog, "askinteger", return_value=5):
+            app.toggle_rotate_timer()
+            app.update()
+            assert app.rotate_timer_on is True
+            assert app.btn_timer.cget("text") == "Timer 5m"
+            with open(settings_tmp, encoding="utf-8") as f:
+                assert json.load(f).get("rotate_every_min") == 5
+            app.toggle_rotate_timer()  # OFF
+            app.update()
+            assert app.rotate_timer_on is False
+            assert app.btn_timer.cget("text") == "Timer OFF"
+            with open(settings_tmp, encoding="utf-8") as f:
+                assert json.load(f).get("rotate_every_min") == 0
+    check("scheduled-rotation toggle + persistence (P3)", timer_toggle)
 
     def best():
         b = app.get_best_server()

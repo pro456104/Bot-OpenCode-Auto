@@ -7,12 +7,12 @@ import threading
 import time
 import os
 import atexit
-from ..gold import get_countries, get_sources, gold_fresh
+from ..gold import collect_scan_state, get_countries, get_sources, gold_fresh
 from ..kernel import KERNEL_CONF, WIREGUARD_EXE, any_kernel_up, kernel_tunnel_up, kernel_uninstall
 from ..net import fetch_direct_ip, get_ip
-from ..paths import OPENCODE_SEARCHED, WIREPROXY_SEARCHED
+from ..paths import OPENCODE_SEARCHED, WIREPROXY_SEARCHED, load_settings
 from ..storage import load_history, load_servers, save_history
-from ..tunnel import kill_wp, wp_running
+from ..tunnel import ensure_proxy_ports, kill_wp, wp_running
 from .. import paths
 from .server_list import ServerListMixin
 from .dialogs import DialogsMixin
@@ -77,7 +77,16 @@ class App(ServerListMixin, DialogsMixin, ConnectMixin, FetchMixin, ProtectMixin,
         self.server_var = tk.StringVar(value="")
         self.auto_reconnect = False
         self.auto_reconnect_thread = None
+        # Scheduled rotation (P3): persisted interval + dedicated stop event.
+        self.rotate_timer_on = False
+        self.rotate_timer_thread = None
+        self._timer_stop = threading.Event()
+        self.rotate_every_min = int(load_settings().get("rotate_every_min", 0) or 0)
         self.failed_servers = set()
+        # Restore fresh persisted scan marks (P3): the UI starts informed.
+        _st, _lat = collect_scan_state(self.all_servers)
+        self.server_status.update(_st)
+        self.server_latency.update(_lat)
         self.search_var = tk.StringVar()
         self.search_var.trace_add("write", lambda *a: self.refresh_server_list())
         self.total_rotations_today = 0
@@ -85,8 +94,19 @@ class App(ServerListMixin, DialogsMixin, ConnectMixin, FetchMixin, ProtectMixin,
 
         atexit.register(self.cleanup)
         self.build()
+        # Relocate proxy listeners if another program owns 8080/10808
+        # (wireproxy would die instantly with a bind error otherwise).
+        try:
+            _http, _socks, _moved = ensure_proxy_ports()
+            if _moved:
+                self.log("Ports busy: proxy relocated to HTTP %d / SOCKS %d."
+                         % (_http, _socks))
+        except Exception:
+            pass
         self._check_deps()
         self.update_timer()
+        if self.rotate_every_min > 0:
+            self._start_rotate_timer()
 
     def update_timer(self):
         elapsed = int(time.time() - self.start_time)
@@ -370,6 +390,7 @@ class App(ServerListMixin, DialogsMixin, ConnectMixin, FetchMixin, ProtectMixin,
         fetch_menu.add_command(label="Fetch WG Bundle", command=self.fetch_bundle)
         fetch_menu.add_command(label="ProtonVPN", command=self.fetch_protonvpn)
         fetch_menu.add_command(label="VPNBook", command=self.fetch_vpnbook)
+        fetch_menu.add_command(label="WARP Pool (auto)", command=self.fetch_warp)
         fetch_menu.add_separator()
         fetch_menu.add_command(label="Fetch ALL Fresh (1-click)", command=self.fetch_all_fresh)
         self._fetch_mb.configure(menu=fetch_menu)
@@ -393,6 +414,11 @@ class App(ServerListMixin, DialogsMixin, ConnectMixin, FetchMixin, ProtectMixin,
                                      fg="white", font=("Segoe UI", 8, "bold"),
                                      width=11, command=self.toggle_protect)
         self.btn_protect.pack(side="left", padx=(6, 2))
+        # Scheduled rotation toggle (P3): interval persisted in settings.json.
+        self.btn_timer = tk.Button(left_sec, text="Timer OFF", bg="#6e7681",
+                                   fg="white", font=("Segoe UI", 8, "bold"),
+                                   width=10, command=self.toggle_rotate_timer)
+        self.btn_timer.pack(side="left", padx=(2, 2))
 
         tk.Button(right_sec, text="Paths", bg="#21262d", fg="#c9d1d9",
                   font=("Segoe UI", 8, "bold"), width=7,
@@ -688,6 +714,15 @@ class App(ServerListMixin, DialogsMixin, ConnectMixin, FetchMixin, ProtectMixin,
             self._sync_protect_btn()
         except Exception:
             pass
+        try:
+            self._timer_stop.set()
+        except Exception:
+            pass
+        self.rotate_timer_on = False
+        try:
+            self._sync_timer_btn()
+        except Exception:
+            pass
         # Slow kills (taskkill/service) run in the background: Reset must
         # never freeze the UI, and late threads are already session-blocked.
         threading.Thread(target=self._reset_kills, daemon=True).start()
@@ -742,5 +777,7 @@ class App(ServerListMixin, DialogsMixin, ConnectMixin, FetchMixin, ProtectMixin,
         self.stop_event.set()
         self.monitoring = False
         self.auto_reconnect = False
+        self._timer_stop.set()
+        self.rotate_timer_on = False
         self.cleanup()
         self.destroy()
