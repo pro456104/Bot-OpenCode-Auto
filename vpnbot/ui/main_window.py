@@ -11,7 +11,7 @@ from ..gold import get_countries, get_sources, gold_fresh
 from ..kernel import KERNEL_CONF, WIREGUARD_EXE, any_kernel_up, kernel_tunnel_up, kernel_uninstall
 from ..net import fetch_direct_ip, get_ip
 from ..paths import OPENCODE_SEARCHED, WIREPROXY_SEARCHED
-from ..storage import load_history, load_servers
+from ..storage import load_history, load_servers, save_history
 from ..tunnel import kill_wp, wp_running
 from .. import paths
 from .server_list import ServerListMixin
@@ -507,6 +507,18 @@ class App(ServerListMixin, DialogsMixin, ConnectMixin, FetchMixin, ProtectMixin,
             fg="#3fb950" if ok else "#f85149")
         if ok and i + 1 < 2:
             self.step_btns[i + 1].config(state="normal", bg="#238636")
+
+    def _record_rotation(self, server, ip, kernel=False):
+        """Unified rotation bookkeeping (was 4 copies): counters + history + active endpoint."""
+        self.rotation_count += 1
+        self.total_rotations_today += 1
+        self.ip_history.append({
+            "time": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "server": server["name"] + (" [kernel]" if kernel else ""),
+            "ip": ip,
+        })
+        save_history(self.ip_history)
+        self.active_endpoint = server.get("endpoint", "")
 
     def _set_btn_connected(self):
         """Flip step-1 button to red Disconnect (same button)."""

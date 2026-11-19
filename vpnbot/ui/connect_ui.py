@@ -9,7 +9,7 @@ import random
 import subprocess
 from ..gold import gold_fresh, stamp_verified
 from ..kernel import KERNEL_CONF, KERNEL_TUNNEL, any_kernel_up, kernel_install, kernel_interfaces, kernel_tunnel_up, kernel_uninstall, make_kernel_conf, wait_for_kernel_ready
-from ..storage import save_history, save_servers
+from ..storage import save_servers
 from ..tunnel import WireproxyMissing, dial, kill_wp, wp_running
 from .. import paths
 
@@ -451,15 +451,8 @@ class ConnectMixin:
         # Guarantee the button flips to red Disconnect even if
         # history/log/row-marking throws (old bug left it grey disabled).
         try:
-            self.rotation_count += 1
-            self.total_rotations_today += 1
-            self.ip_history.append({
-                "time": time.strftime("%Y-%m-%d %H:%M:%S"),
-                "server": server["name"], "ip": ip,
-            })
-            save_history(self.ip_history)
+            self._record_rotation(server, ip)
             self.log(f"Connected to {server['name']} | IP: {ip}")
-            self.active_endpoint = server.get("endpoint", "")
             try:
                 self._mark_active_row()
             except Exception:
@@ -641,15 +634,8 @@ class ConnectMixin:
             return
         # Guarantee red Disconnect flip (same-button toggle) even if logging fails.
         try:
-            self.rotation_count += 1
-            self.total_rotations_today += 1
-            self.ip_history.append({
-                "time": time.strftime("%Y-%m-%d %H:%M:%S"),
-                "server": server["name"], "ip": ip,
-            })
-            save_history(self.ip_history)
+            self._record_rotation(server, ip)
             self.log(f"Rotated to {server['name']} | IP: {ip}")
-            self.active_endpoint = server.get("endpoint", "")
             try:
                 self._mark_active_row()
             except Exception:
@@ -754,15 +740,8 @@ class ConnectMixin:
             return
         # Guarantee red Disconnect flip even if logging fails.
         try:
-            self.rotation_count += 1
-            self.total_rotations_today += 1
-            self.ip_history.append({
-                "time": time.strftime("%Y-%m-%d %H:%M:%S"),
-                "server": server["name"] + " [kernel]", "ip": ip,
-            })
-            save_history(self.ip_history)
+            self._record_rotation(server, ip, kernel=True)
             self.log(f"Kernel connected: {server['name']} | exit IP: {ip} (direct, no proxy)")
-            self.active_endpoint = server.get("endpoint", "")
             try:
                 self._mark_active_row()
             except Exception:

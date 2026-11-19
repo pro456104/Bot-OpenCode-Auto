@@ -5,7 +5,6 @@ import threading
 import time
 from ..kernel import any_kernel_up, kernel_tunnel_up
 from ..net import fetch_direct_ip, get_ip
-from ..storage import save_history
 from ..tunnel import dial, kill_wp, wp_running
 
 class ProtectMixin:
@@ -187,15 +186,8 @@ class ProtectMixin:
                     pass
                 return
             if ip:
-                self.rotation_count += 1
-                self.total_rotations_today += 1
-                self.ip_history.append({
-                    "time": time.strftime("%Y-%m-%d %H:%M:%S"),
-                    "server": server["name"], "ip": ip,
-                })
-                save_history(self.ip_history)
+                self._record_rotation(server, ip)
                 # Keep main button truthful: AUTO connect must also turn it red.
-                self.active_endpoint = server.get("endpoint", "")
                 try:
                     self.failed_servers.discard(server.get("endpoint", ""))
                 except Exception:
