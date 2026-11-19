@@ -18,7 +18,7 @@ from ..net import check_server
 from ..parsing import classify_bundle_country, parse_conf_from_text, parse_wireguard_uri
 from ..paths import BASE_DIR, SERVERS_FILE
 from ..sources import WIREGUARD_BUNDLE_URL, fetch_bundle_text, fetch_proton_zip, generate_wg_key, get_vpnbook_pubkey, iter_proton_servers
-from ..storage import save_servers
+from ..storage import merge_servers, save_servers
 from ..tunnel import dial, kill_wp, wp_running
 from ..util import now_iso
 
@@ -93,20 +93,8 @@ class FetchMixin:
                 return
 
             # Replace mode: drop old URL source only (fresh copy from this URL).
-            removed = sum(1 for s in self.all_servers if s.get("source") == "URL")
-            self.all_servers = [s for s in self.all_servers if s.get("source") != "URL"]
-            existing = {s.get("endpoint") for s in self.all_servers}
-
-            added = 0
-            skipped = 0
-            for server in new_servers:
-                if server.get("endpoint") in existing:
-                    skipped += 1
-                    continue
-                self.all_servers.append(server)
-                existing.add(server.get("endpoint"))
-                added += 1
-
+            self.all_servers, removed, added, skipped = merge_servers(
+                self.all_servers, new_servers, replace_sources=("URL",))
             save_servers(self.all_servers)
             self._safe_after(0, self._refresh_filter_menus)
             self._safe_after(0, self.refresh_server_list)
@@ -192,26 +180,8 @@ class FetchMixin:
             return
 
         # Replace mode: drop old BulkURL only.
-        removed = sum(1 for s in self.all_servers if s.get("source") == "BulkURL")
-        self.all_servers = [s for s in self.all_servers if s.get("source") != "BulkURL"]
-        existing = {s.get("endpoint") for s in self.all_servers}
-
-        total_added = 0
-        total_skipped = 0
-        seen_new = set()
-        for server in new_servers:
-            ep = server.get("endpoint")
-            if ep in seen_new:
-                total_skipped += 1
-                continue
-            seen_new.add(ep)
-            if ep in existing:
-                total_skipped += 1
-                continue
-            self.all_servers.append(server)
-            existing.add(ep)
-            total_added += 1
-
+        self.all_servers, removed, total_added, total_skipped = merge_servers(
+            self.all_servers, new_servers, replace_sources=("BulkURL",))
         save_servers(self.all_servers)
         self._safe_after(0, self._refresh_filter_menus)
         self._safe_after(0, self.refresh_server_list)
@@ -272,26 +242,14 @@ class FetchMixin:
 
             # New clearly-numbered section: sort by country then endpoint
             from collections import Counter as _Counter
-            new_servers.sort(key=lambda s: (s.get("country", "XX"), s.get("endpoint", "")))
             per_country = _Counter(s.get("country", "XX") for s in new_servers)
 
             # Replace mode: drop old Bundle sources only, keep other sources.
-            bundle_sources = ("WireGuard-Bundle", "Refresh-Bundle")
-            removed = sum(1 for s in self.all_servers if s.get("source") in bundle_sources)
-            self.all_servers = [s for s in self.all_servers if s.get("source") not in bundle_sources]
-            existing = {s.get("endpoint") for s in self.all_servers}
-
-            added = 0
-            skipped = 0
-            for i, server in enumerate(new_servers, 1):
-                if server.get("endpoint") in existing:
-                    skipped += 1
-                    continue
-                server["name"] = f"{i:03d} | wg-{server.get('country')}-BUN"
-                self.all_servers.append(server)
-                existing.add(server.get("endpoint"))
-                added += 1
-
+            self.all_servers, removed, added, skipped = merge_servers(
+                self.all_servers, new_servers,
+                replace_sources=("WireGuard-Bundle", "Refresh-Bundle"),
+                sort_new=True,
+                rename=lambda s, i, n: f"{i:03d} | wg-{s.get('country')}-BUN")
             save_servers(self.all_servers)
             def _show_bundle_section():
                 try:
@@ -350,29 +308,15 @@ class FetchMixin:
                 return
 
             # Replace mode: drop old Proton sources only, keep other sources.
-            proton_sources = ("ProtonVPN", "Refresh-Proton")
-            removed = sum(1 for s in self.all_servers if s.get("source") in proton_sources)
-            self.all_servers = [s for s in self.all_servers if s.get("source") not in proton_sources]
-            existing = {s.get("endpoint") for s in self.all_servers}
-
             # New clearly-numbered section: sort by country then endpoint,
             # renumber 001..N so the fresh block is ordered and easy to read.
             from collections import Counter
-            new_servers.sort(key=lambda s: (s.get("country", "XX"), s.get("endpoint", "")))
             per_country = Counter(s.get("country", "XX") for s in new_servers)
-
-            added = 0
-            skipped = 0
-            for i, server in enumerate(new_servers, 1):
-                if server.get("endpoint") in existing:
-                    skipped += 1
-                    continue
-                # Numbered clear section: "001 | wg-US-FREE-104"
-                server["name"] = f"{i:03d} | {server.get('name', 'Proton')}"
-                self.all_servers.append(server)
-                existing.add(server.get("endpoint"))
-                added += 1
-
+            self.all_servers, removed, added, skipped = merge_servers(
+                self.all_servers, new_servers,
+                replace_sources=("ProtonVPN", "Refresh-Proton"),
+                sort_new=True,
+                rename=lambda s, i, n: f"{i:03d} | {s.get('name', 'Proton')}")
             save_servers(self.all_servers)
             # Show the fresh section clearly: reset filters so new IPs are visible
             def _show_proton_section():
@@ -460,20 +404,8 @@ PersistentKeepalive = 25
                 return
 
             # Replace mode: drop old VPNBook only.
-            removed = sum(1 for s in self.all_servers if s.get("source") == "VPNBook")
-            self.all_servers = [s for s in self.all_servers if s.get("source") != "VPNBook"]
-            existing = {s.get("endpoint") for s in self.all_servers}
-
-            added = 0
-            skipped = 0
-            for server in new_servers:
-                if server.get("endpoint") in existing:
-                    skipped += 1
-                    continue
-                self.all_servers.append(server)
-                existing.add(server.get("endpoint"))
-                added += 1
-
+            self.all_servers, removed, added, skipped = merge_servers(
+                self.all_servers, new_servers, replace_sources=("VPNBook",))
             save_servers(self.all_servers)
             self._safe_after(0, self._refresh_filter_menus)
             self._safe_after(0, self.refresh_server_list)
@@ -582,33 +514,14 @@ PersistentKeepalive = 25
                 return
 
             # Replace all three source families at once, keep Manual/Imported/URL etc.
-            replace_sources = ("WireGuard-Bundle", "Refresh-Bundle", "ProtonVPN", "Refresh-Proton", "VPNBook")
-            removed = sum(1 for s in self.all_servers if s.get("source") in replace_sources)
-            self.all_servers = [s for s in self.all_servers if s.get("source") not in replace_sources]
-            existing = {s.get("endpoint") for s in self.all_servers}
-            # Clearly-numbered fresh section: sort ALL by country then endpoint
-            try:
-                all_new.sort(key=lambda s: (s.get("country", "XX"), s.get("endpoint", "")))
-            except Exception:
-                pass
-            added = skipped = 0
-            seen_all = set()
-            num = 0
-            for srv in all_new:
-                ep = srv.get("endpoint")
-                if not ep or ep in seen_all:
-                    skipped += 1
-                    continue
-                seen_all.add(ep)
-                if ep in existing:
-                    skipped += 1
-                    continue
-                num += 1
-                srv["name"] = f"{num:03d} | wg-{srv.get('country', 'XX')}-ALL"
-                self.all_servers.append(srv)
-                existing.add(ep)
-                added += 1
-
+            # Clearly-numbered fresh section: sort ALL by country then endpoint,
+            # numbered by running added count (no gaps).
+            self.all_servers, removed, added, skipped = merge_servers(
+                self.all_servers, all_new,
+                replace_sources=("WireGuard-Bundle", "Refresh-Bundle", "ProtonVPN",
+                                 "Refresh-Proton", "VPNBook"),
+                sort_new=True,
+                rename=lambda s, i, n: f"{n:03d} | wg-{s.get('country', 'XX')}-ALL")
             save_servers(self.all_servers)
             def _show_all_section():
                 try:
