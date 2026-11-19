@@ -1,1 +1,4 @@
-{}
+{
+  "proxy_http_port": 8081,
+  "proxy_socks_port": 10808
+}

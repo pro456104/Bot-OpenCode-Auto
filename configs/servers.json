@@ -9724,5 +9724,45 @@
     "source": "ProtonVPN",
     "fetched_at": "2026-11-19T16:34:09",
     "source_url": "https://github.com/Delta-Kronecker/ProtonVPN-WireGuard-configuration/raw/refs/heads/main/ProtonVPN_WireGuard_Configs.zip"
+  },
+  {
+    "name": "WARP-01",
+    "private_key": "6IWVJjBaHVPcX4rL6NoPiaDluj9H2D+KpPZ5R+6YVnY=",
+    "address": "172.16.0.2/32",
+    "public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
+    "endpoint": "162.159.192.1:2408",
+    "dns": "1.1.1.1",
+    "mtu": "1280",
+    "country": "CF",
+    "source": "WARP-Auto",
+    "warp_id": "0bca3043-f182-41b4-91a6-a190bd069e1d",
+    "warp_fallbacks": [
+      "engage.cloudflareclient.com:2408"
+    ],
+    "fetched_at": "2026-11-19T18:21:22",
+    "source_url": "https://api.cloudflareclient.com/v0a2158/reg",
+    "verified": true,
+    "last_verified": "2026-11-19T18:21:26",
+    "exit_ip": "104.28.245.132"
+  },
+  {
+    "name": "WARP-02",
+    "private_key": "8AJek9shursJRDN5Zn8JOMSxBpKuscJ0gAjoEzcFino=",
+    "address": "172.16.0.2/32",
+    "public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
+    "endpoint": "162.159.192.3:2408",
+    "dns": "1.1.1.1",
+    "mtu": "1280",
+    "country": "CF",
+    "source": "WARP-Auto",
+    "warp_id": "2692c317-d9d0-4be9-9146-5b40241025ab",
+    "warp_fallbacks": [
+      "engage.cloudflareclient.com:2408"
+    ],
+    "fetched_at": "2026-11-19T18:21:23",
+    "source_url": "https://api.cloudflareclient.com/v0a2158/reg",
+    "verified": true,
+    "last_verified": "2026-11-19T18:21:28",
+    "exit_ip": "104.28.213.132"
   }
 ]
