@@ -1,0 +1,6 @@
+# OpenCode VPN Bot — stdlib only, no pip packages required.
+# Requires: Python 3.10+ with Tkinter (included in standard python.org Windows installs).
+# External programs (auto-detected, see configs/settings.json on override):
+#   - wireproxy.exe (bundled in ./bin/, else PATH, else wg-opencode install)
+#   - OpenCode Desktop (LOCALAPPDATA, else PATH)
+#   - Optional: official WireGuard client (kernel mode only)

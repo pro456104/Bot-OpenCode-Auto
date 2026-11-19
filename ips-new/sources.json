@@ -1,0 +1,275 @@
+[
+  {
+    "source": "Delta-Kronecker-WARP",
+    "url": "https://raw.githubusercontent.com/Delta-Kronecker/WARP-Config/refs/heads/main/ALL.txt",
+    "country_hint": null,
+    "configs": 1194,
+    "alive": false
+  },
+  {
+    "source": "morpheusadam-v2ray-wireguard",
+    "url": "https://github.laiyagushi.com/ghraw/morpheusadam/v2ray-config/main/subs/bundles/wireguard.txt",
+    "country_hint": null,
+    "configs": 546,
+    "alive": false
+  },
+  {
+    "source": "NiREvil-vless-wg",
+    "url": "https://raw.githubusercontent.com/NiREvil/vless/refs/heads/main/sub/v2rayng-wg.txt",
+    "country_hint": null,
+    "configs": 118,
+    "alive": false
+  },
+  {
+    "source": "ProtonVPN-ZIP-DE",
+    "url": "https://github.com/Delta-Kronecker/ProtonVPN-WireGuard-configuration/raw/refs/heads/main/ProtonVPN_WireGuard_Configs.zip",
+    "country_hint": "DE",
+    "configs": 43,
+    "alive": false
+  },
+  {
+    "source": "ProtonVPN-ZIP-NL",
+    "url": "https://github.com/Delta-Kronecker/ProtonVPN-WireGuard-configuration/raw/refs/heads/main/ProtonVPN_WireGuard_Configs.zip",
+    "country_hint": "NL",
+    "configs": 43,
+    "alive": false
+  },
+  {
+    "source": "ProtonVPN-ZIP-FR",
+    "url": "https://github.com/Delta-Kronecker/ProtonVPN-WireGuard-configuration/raw/refs/heads/main/ProtonVPN_WireGuard_Configs.zip",
+    "country_hint": "FR",
+    "configs": 43,
+    "alive": false
+  },
+  {
+    "source": "amin4139-Wireguard",
+    "url": "https://raw.githubusercontent.com/amin4139/share_file/main/Wireguard.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "mahdibland-V2RayAggregator-Eternity",
+    "url": "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/Eternity.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "Epodonios-v2ray-configs-all",
+    "url": "https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/All_Configs_Sub.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-1",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/1.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-3",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/3.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-4",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/4.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-5",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/5.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-6",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/6.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-7",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/7.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-8",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/8.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-9",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/9.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-10",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/10.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-11",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/11.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-12",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/12.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-13",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/13.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-14",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/14.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-15",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/15.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-16",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/16.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-17",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/17.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-18",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/18.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-19",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/19.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-21",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/21.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-22",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/22.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-23",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/23.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-24",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/24.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-25",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/25.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "nikita29a-mirror-26",
+    "url": "https://raw.githubusercontent.com/nikita29a/FreeProxyList/main/mirror/26.txt",
+    "country_hint": null,
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "Argh94-Germany",
+    "url": "https://raw.githubusercontent.com/Argh94/V2RayAutoConfig/refs/heads/main/configs/Germany.txt",
+    "country_hint": "DE",
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "proxifly-wg-DE",
+    "url": "https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/countries/DE/data.txt",
+    "country_hint": "DE",
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "Argh94-Netherlands",
+    "url": "https://raw.githubusercontent.com/Argh94/V2RayAutoConfig/refs/heads/main/configs/Netherlands.txt",
+    "country_hint": "NL",
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "proxifly-wg-NL",
+    "url": "https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/countries/NL/data.txt",
+    "country_hint": "NL",
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "Argh94-France",
+    "url": "https://raw.githubusercontent.com/Argh94/V2RayAutoConfig/refs/heads/main/configs/France.txt",
+    "country_hint": "FR",
+    "configs": 0,
+    "alive": false
+  },
+  {
+    "source": "proxifly-wg-FR",
+    "url": "https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/countries/FR/data.txt",
+    "country_hint": "FR",
+    "configs": 0,
+    "alive": false
+  }
+]

@@ -1,0 +1,11 @@
+# Python caches
+__pycache__/
+*.pyc
+
+# Runtime artifacts (regenerated on connect)
+wireproxy.conf
+wg-kernel.conf
+*.tmp
+
+# Corrupt-DB emergency backups (created by storage layer)
+configs/*.corrupt_*
